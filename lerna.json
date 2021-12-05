@@ -1,13 +1,15 @@
 {
-  "version": "2.0.0-rc.4",
+  "version": "2.0.3",
   "npmClient": "yarn",
   "useWorkspaces": true,
-  "npmClientArgs": ["--ignore-engines"],
+  "npmClientArgs": [
+    "--ignore-engines"
+  ],
   "command": {
     "version": {
       "forcePublish": true,
       "exact": true,
-      "message": "chore(versions): 😊 publish %s"
+      "message": "chore(release): 😊 publish %s"
     }
   }
 }

@@ -1,6 +1,6 @@
 import { ProxyRaw, RawProxy, ReactionStack } from '../environment'
 import { createAnnotation } from '../internals'
-import { buildDataTree } from '../datatree'
+import { buildDataTree } from '../tree'
 import {
   bindTargetKeyWithCurrentReaction,
   runReactionsFromTargetKey,
@@ -9,6 +9,7 @@ import {
   isUntracking,
   batchStart,
   batchEnd,
+  releaseBindingReactions,
 } from '../reaction'
 
 interface IValue<T = any> {
@@ -32,21 +33,21 @@ export const computed: IComputed = createAnnotation(
 
     function getGetter(target: any) {
       if (!target) {
-        if (value?.get) return value?.get
+        if (value && value.get) return value.get
         return value
       }
       const descriptor = Object.getOwnPropertyDescriptor(target, property)
-      if (descriptor?.get) return descriptor.get
+      if (descriptor && descriptor.get) return descriptor.get
       return getGetter(Object.getPrototypeOf(target))
     }
 
     function getSetter(target: any) {
       if (!target) {
-        if (value?.set) return value?.set
+        if (value && value.set) return value.set
         return
       }
       const descriptor = Object.getOwnPropertyDescriptor(target, property)
-      if (descriptor?.set) return descriptor.set
+      if (descriptor && descriptor.set) return descriptor.set
       return getSetter(Object.getPrototypeOf(target))
     }
 
@@ -55,6 +56,7 @@ export const computed: IComputed = createAnnotation(
     }
     function reaction() {
       if (ReactionStack.indexOf(reaction) === -1) {
+        releaseBindingReactions(reaction)
         try {
           ReactionStack.push(reaction)
           compute()
@@ -66,14 +68,12 @@ export const computed: IComputed = createAnnotation(
     reaction._name = 'ComputedReaction'
     reaction._scheduler = () => {
       reaction._dirty = true
-      batchStart()
       runReactionsFromTargetKey({
         target: context,
         key: property,
         value: store.value,
         type: 'set',
       })
-      batchEnd()
     }
     reaction._isComputed = true
     reaction._dirty = true

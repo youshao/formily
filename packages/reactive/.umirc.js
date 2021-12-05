@@ -19,7 +19,7 @@ export default {
       },
       {
         title: 'Home Site',
-        path: 'https://v2.formilyjs.org',
+        path: 'https://formilyjs.org',
       },
       {
         title: 'GITHUB',
@@ -37,7 +37,7 @@ export default {
       },
       {
         title: '主站',
-        path: 'https://v2.formilyjs.org',
+        path: 'https://formilyjs.org',
       },
       {
         title: 'GITHUB',
@@ -144,6 +144,10 @@ export default {
             path: '/api/untracked',
           },
           {
+            title: 'hasCollected',
+            path: '/api/has-collected',
+          },
+          {
             title: 'Tracker',
             path: '/api/tracker',
           },
@@ -239,6 +243,10 @@ export default {
           {
             title: 'untracked',
             path: '/zh-CN/api/untracked',
+          },
+          {
+            title: 'hasCollected',
+            path: '/zh-CN/api/has-collected',
           },
           {
             title: 'Tracker',

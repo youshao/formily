@@ -13,7 +13,7 @@ import {
   useFieldSchema,
   RecursionField,
 } from '@formily/react'
-import { FormPath, isArr, isBool } from '@formily/shared'
+import { isArr, isBool } from '@formily/shared'
 import { Schema } from '@formily/json-schema'
 import { usePrefixCls } from '../__builtins__'
 import { ArrayBase, ArrayBaseMixins } from '../array-base'
@@ -90,6 +90,7 @@ const useArrayTableSources = () => {
   }
 
   const parseArrayItems = (schema: Schema['items']) => {
+    if (!schema) return []
     const sources: ObservableColumnSource[] = []
     const items = isArr(schema) ? schema : [schema]
     return items.reduce((columns, schema) => {
@@ -120,7 +121,7 @@ const useArrayTableColumns = (
       render: (value: any, record: any) => {
         const index = dataSource.indexOf(record)
         const children = (
-          <ArrayBase.Item index={index}>
+          <ArrayBase.Item index={index} record={record}>
             <RecursionField schema={schema} name={index} onlyRenderProperties />
           </ArrayBase.Item>
         )
@@ -148,15 +149,20 @@ const StatusSelect: React.FC<IStatusSelectProps> = observer((props) => {
     type: 'error',
     address: `${field.address}.*`,
   })
-  const createIndexPattern = (page: number) => {
-    const pattern = `${field.address}.*[${(page - 1) * props.pageSize}:${
-      page * props.pageSize
-    }].*`
-    return FormPath.parse(pattern)
+  const parseIndex = (address: string) => {
+    return Number(
+      address
+        .slice(address.indexOf(field.address.toString()) + 1)
+        .match(/(\d+)/)?.[1]
+    )
   }
+
   const options = props.options?.map(({ label, value }) => {
     const hasError = errors.some(({ address }) => {
-      return createIndexPattern(value).match(address)
+      const currentIndex = parseIndex(address)
+      const startIndex = (value - 1) * props.pageSize
+      const endIndex = value * props.pageSize
+      return currentIndex >= startIndex && currentIndex <= endIndex
     })
     return {
       label: hasError ? <Badge dot>{label}</Badge> : label,
@@ -245,6 +251,10 @@ const ArrayTablePagination: React.FC<IArrayTablePaginationProps> = (props) => {
   )
 }
 
+const RowComp = (props: any) => {
+  return <SortableRow index={props['data-row-key'] || 0} {...props} />
+}
+
 export const ArrayTable: ComposedArrayTable = observer(
   (props: TableProps<any>) => {
     const ref = useRef<HTMLDivElement>()
@@ -305,14 +315,7 @@ export const ArrayTable: ComposedArrayTable = observer(
                         {...props}
                       />
                     ),
-                    row: (props: any) => {
-                      return (
-                        <SortableRow
-                          index={props['data-row-key'] || 0}
-                          {...props}
-                        />
-                      )
-                    },
+                    row: RowComp,
                   },
                 }}
               />

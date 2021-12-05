@@ -1,19 +1,19 @@
 import React, { createContext, useContext } from 'react'
 import { Button } from '@alifd/next'
-import {
-  DeleteOutlined,
-  DownOutlined,
-  UpOutlined,
-  PlusOutlined,
-  MenuOutlined,
-} from '@ant-design/icons'
 import { isValid, clone } from '@formily/shared'
-import { AntdIconProps } from '@ant-design/icons/lib/components/AntdIcon'
 import { ButtonProps } from '@alifd/next/lib/button'
 import { ArrayField } from '@formily/core'
 import { useField, useFieldSchema, Schema, JSXComponent } from '@formily/react'
 import { SortableHandle } from 'react-sortable-hoc'
-import { usePrefixCls } from '../__builtins__'
+import {
+  usePrefixCls,
+  PlusOutlinedIcon,
+  DeleteOutlinedIcon,
+  DownOutlinedIcon,
+  UpOutlinedIcon,
+  MenuOutlinedIcon,
+  IconProps,
+} from '../__builtins__'
 import cls from 'classnames'
 
 export interface IArrayBaseAdditionProps extends ButtonProps {
@@ -30,17 +30,19 @@ export interface IArrayBaseContext {
 
 export interface IArrayBaseItemProps {
   index: number
+  record: any
 }
 
 export type ArrayBaseMixins = {
   Addition?: React.FC<IArrayBaseAdditionProps>
-  Remove?: React.FC<AntdIconProps & { index?: number }>
-  MoveUp?: React.FC<AntdIconProps & { index?: number }>
-  MoveDown?: React.FC<AntdIconProps & { index?: number }>
-  SortHandle?: React.FC<AntdIconProps & { index?: number }>
+  Remove?: React.FC<IconProps & { index?: number }>
+  MoveUp?: React.FC<IconProps & { index?: number }>
+  MoveDown?: React.FC<IconProps & { index?: number }>
+  SortHandle?: React.FC<IconProps & { index?: number }>
   Index?: React.FC
   useArray?: () => IArrayBaseContext
   useIndex?: () => number
+  useRecord?: () => any
 }
 
 export interface IArrayBaseProps {
@@ -68,6 +70,11 @@ const useArray = () => {
 const useIndex = (index?: number) => {
   const ctx = useContext(ItemContext)
   return ctx ? ctx.index : index
+}
+
+const useRecord = (record?: number) => {
+  const ctx = useContext(ItemContext)
+  return ctx ? ctx.record : record
 }
 
 const getDefaultValue = (defaultValue: any, schema: Schema) => {
@@ -101,7 +108,7 @@ ArrayBase.Item = ({ children, ...props }) => {
 const SortHandle = SortableHandle((props: any) => {
   const prefixCls = usePrefixCls('formily-array-base')
   return (
-    <MenuOutlined
+    <MenuOutlinedIcon
       {...props}
       className={cls(`${prefixCls}-sort-handle`, props.className)}
       style={{ ...props.style }}
@@ -116,9 +123,14 @@ ArrayBase.SortHandle = () => {
   return <SortHandle />
 }
 
-ArrayBase.Index = () => {
+ArrayBase.Index = (props) => {
   const index = useIndex()
-  return <span>#{index + 1}.</span>
+  const prefixCls = usePrefixCls('formily-array-base')
+  return (
+    <span {...props} className={`${prefixCls}-index`}>
+      #{index + 1}.
+    </span>
+  )
 }
 
 ArrayBase.Addition = (props) => {
@@ -126,10 +138,15 @@ ArrayBase.Addition = (props) => {
   const array = useArray()
   const prefixCls = usePrefixCls('formily-array-base')
   if (!array) return null
-  if (array.field?.pattern !== 'editable') return null
+  if (
+    array.field?.pattern !== 'editable' &&
+    array.field?.pattern !== 'disabled'
+  )
+    return null
   return (
     <Button
       {...props}
+      disabled={array.field?.disabled}
       className={cls(`${prefixCls}-addition`, props.className)}
       style={{ display: 'block', width: '100%', ...props.style }}
       onClick={(e) => {
@@ -148,7 +165,7 @@ ArrayBase.Addition = (props) => {
         }
       }}
     >
-      <PlusOutlined />
+      <PlusOutlinedIcon />
       {props.title || self.title}
     </Button>
   )
@@ -161,7 +178,7 @@ ArrayBase.Remove = React.forwardRef((props, ref) => {
   if (!array) return null
   if (array.field?.pattern !== 'editable') return null
   return (
-    <DeleteOutlined
+    <DeleteOutlinedIcon
       {...props}
       className={cls(`${prefixCls}-remove`, props.className)}
       ref={ref}
@@ -185,7 +202,7 @@ ArrayBase.MoveDown = React.forwardRef((props, ref) => {
   if (!array) return null
   if (array.field?.pattern !== 'editable') return null
   return (
-    <DownOutlined
+    <DownOutlinedIcon
       {...props}
       className={cls(`${prefixCls}-move-down`, props.className)}
       ref={ref}
@@ -209,7 +226,7 @@ ArrayBase.MoveUp = React.forwardRef((props, ref) => {
   if (!array) return null
   if (array.field?.pattern !== 'editable') return null
   return (
-    <UpOutlined
+    <UpOutlinedIcon
       {...props}
       className={cls(`${prefixCls}-move-up`, props.className)}
       ref={ref}
@@ -228,6 +245,7 @@ ArrayBase.MoveUp = React.forwardRef((props, ref) => {
 
 ArrayBase.useArray = useArray
 ArrayBase.useIndex = useIndex
+ArrayBase.useRecord = useRecord
 ArrayBase.mixin = (target: any) => {
   target.Index = ArrayBase.Index
   target.SortHandle = ArrayBase.SortHandle
@@ -237,6 +255,7 @@ ArrayBase.mixin = (target: any) => {
   target.MoveUp = ArrayBase.MoveUp
   target.useArray = ArrayBase.useArray
   target.useIndex = ArrayBase.useIndex
+  target.useRecord = ArrayBase.useRecord
   return target
 }
 

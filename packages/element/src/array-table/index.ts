@@ -129,6 +129,7 @@ const getArrayTableSources = (
   }
 
   const parseArrayTable = (schema: Schema['items']) => {
+    if (!schema) return []
     const sources: ObservableColumnSource[] = []
     const items = isArr(schema) ? schema : ([schema] as Schema[])
     return items.reduce((columns, schema) => {
@@ -172,7 +173,7 @@ const getArrayTableColumns = (
 
               const children = h(
                 ArrayBase.Item,
-                { props: { index }, key: `${key}${index}` },
+                { props: { index, record: props.row }, key: `${key}${index}` },
                 {
                   default: () =>
                     h(
@@ -230,7 +231,7 @@ const StatusSelect = observer(
       options: Array,
       pageSize: Number,
     },
-    setup(props, { attrs }) {
+    setup(props) {
       const formRef = useForm()
       const fieldRef = useField<ArrayField>()
       const prefixCls = `${stylePrefix}-array-table`
@@ -409,7 +410,7 @@ const ArrayTableInner = observer(
   defineComponent<IArrayTableProps>({
     name: 'FArrayTable',
     inheritAttrs: false,
-    setup(props, { attrs }) {
+    setup(props, { attrs, listeners, slots }) {
       const fieldRef = useField<ArrayField>()
       const schemaRef = useFieldSchema()
       const prefixCls = `${stylePrefix}-array-table`
@@ -511,8 +512,10 @@ const ArrayTableInner = observer(
                             ...attrs,
                             data: dataSource,
                           },
+                          on: listeners,
                         },
                         {
+                          ...slots,
                           default: renderColumns,
                         }
                       ),
@@ -561,6 +564,7 @@ export const ArrayTable = composeExport(ArrayTableInner, {
   MoveUp: ArrayBase.MoveUp,
   useArray: ArrayBase.useArray,
   useIndex: ArrayBase.useIndex,
+  useRecord: ArrayBase.useRecord,
 })
 
 export default ArrayTable

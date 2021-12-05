@@ -1,17 +1,17 @@
-import React, { useState, useRef, useLayoutEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import cls from 'classnames'
-import { usePrefixCls, pickDataProps } from '../__builtins__'
+import {
+  usePrefixCls,
+  pickDataProps,
+  QuestionCircleOutlinedIcon,
+  CloseCircleOutlinedIcon,
+  CheckCircleOutlinedIcon,
+  ExclamationCircleOutlinedIcon,
+} from '../__builtins__'
 import { isVoidField } from '@formily/core'
 import { connect, mapProps } from '@formily/react'
 import { useFormLayout, FormLayoutShallowContext } from '../form-layout'
-import { useGridSpan } from '../form-grid'
 import { Balloon } from '@alifd/next'
-import {
-  QuestionCircleOutlined,
-  CloseCircleOutlined,
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-} from '@ant-design/icons'
 
 export interface IFormItemProps {
   className?: string
@@ -78,7 +78,7 @@ const useFormItemLayout = (props: IFormItemProps) => {
     feedbackLayout: props.feedbackLayout ?? layout.feedbackLayout ?? 'loose',
     tooltipLayout: props.tooltipLayout ?? layout.tooltipLayout ?? 'icon',
     tooltipIcon: props.tooltipIcon ?? layout.tooltipIcon ?? (
-      <QuestionCircleOutlined />
+      <QuestionCircleOutlinedIcon />
     ),
   }
 }
@@ -91,7 +91,7 @@ function useOverflow<
   const containerRef = useRef<Container>()
   const contentRef = useRef<Content>()
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (containerRef.current && contentRef.current) {
       const contentWidth = contentRef.current.getBoundingClientRect().width
       const containerWidth = containerRef.current.getBoundingClientRect().width
@@ -111,15 +111,14 @@ function useOverflow<
 }
 
 const ICON_MAP = {
-  error: <CloseCircleOutlined />,
-  success: <CheckCircleOutlined />,
-  warning: <ExclamationCircleOutlined />,
+  error: <CloseCircleOutlinedIcon />,
+  success: <CheckCircleOutlinedIcon />,
+  warning: <ExclamationCircleOutlinedIcon />,
 }
 
 export const BaseItem: React.FC<IFormItemProps> = (props) => {
   const { children, ...others } = props
-  const [active, setActice] = useState(false)
-  const gridSpan = useGridSpan(props.gridSpan)
+  const [active, setActive] = useState(false)
   const formLayout = useFormItemLayout(others)
   const { containerRef, contentRef, overflow } = useOverflow<
     HTMLDivElement,
@@ -200,10 +199,6 @@ export const BaseItem: React.FC<IFormItemProps> = (props) => {
 
   const gridStyles: React.CSSProperties = {}
 
-  if (gridSpan) {
-    gridStyles.gridColumnStart = `span ${gridSpan}`
-  }
-
   const getOverflowTooltip = () => {
     if (overflow) {
       return (
@@ -276,6 +271,7 @@ export const BaseItem: React.FC<IFormItemProps> = (props) => {
         ...style,
         ...gridStyles,
       }}
+      data-grid-span={props.gridSpan}
       className={cls({
         [`${prefixCls}`]: true,
         [`${prefixCls}-layout-${layout}`]: true,
@@ -298,12 +294,12 @@ export const BaseItem: React.FC<IFormItemProps> = (props) => {
       })}
       onFocus={() => {
         if (feedbackIcon || inset) {
-          setActice(true)
+          setActive(true)
         }
       }}
       onBlur={() => {
         if (feedbackIcon || inset) {
-          setActice(false)
+          setActive(false)
         }
       }}
     >
@@ -387,9 +383,9 @@ export const FormItem: ComposeFormItem = connect(
         }
         if (field.validating) return
         if (props.feedbackText) return props.feedbackText
-        if (field.errors.length) return split(field.errors)
-        if (field.warnings.length) return split(field.warnings)
-        if (field.successes.length) return split(field.successes)
+        if (field.selfErrors.length) return split(field.selfErrors)
+        if (field.selfWarnings.length) return split(field.selfWarnings)
+        if (field.selfSuccesses.length) return split(field.selfSuccesses)
       }
 
       return {

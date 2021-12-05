@@ -35,7 +35,7 @@ module.exports = {
       },
       {
         text: '主站',
-        link: 'https://v2.formilyjs.org',
+        link: 'https://formilyjs.org',
       },
       {
         text: 'GITHUB',
@@ -68,5 +68,24 @@ module.exports = {
         },
       },
     }
+  },
+  chainWebpack: (config, isServer) => {
+    config.module
+      .rule('js') // Find the rule.
+      .use('babel-loader') // Find the loader
+      .tap((options) =>
+        Object.assign(options, {
+          // Modifying options
+          presets: [
+            [
+              '@vue/babel-preset-jsx',
+              {
+                vModel: false,
+                compositionAPI: true,
+              },
+            ],
+          ],
+        })
+      )
   },
 }

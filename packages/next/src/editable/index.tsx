@@ -2,10 +2,15 @@ import React, { useLayoutEffect, useRef, useState } from 'react'
 import { isVoidField, Field } from '@formily/core'
 import { useField, observer } from '@formily/react'
 import { Balloon } from '@alifd/next'
-import { EditOutlined, CloseOutlined, MessageOutlined } from '@ant-design/icons'
 import { BalloonProps as PopoverProps } from '@alifd/next/lib/balloon'
 import { BaseItem, IFormItemProps } from '../form-item'
-import { useClickAway, usePrefixCls } from '../__builtins__'
+import {
+  useClickAway,
+  usePrefixCls,
+  EditOutlinedIcon,
+  CloseOutlinedIcon,
+  MessageOutlinedIcon,
+} from '../__builtins__'
 /**
  * 默认Inline展示
  */
@@ -43,9 +48,9 @@ const useFormItemProps = (): IFormItemProps => {
   if (isVoidField(field)) return {}
   if (!field) return {}
   const takeMessage = () => {
-    if (field.errors.length) return field.errors
-    if (field.warnings.length) return field.warnings
-    if (field.successes.length) return field.successes
+    if (field.selfErrors.length) return field.selfErrors
+    if (field.selfWarnings.length) return field.selfWarnings
+    if (field.selfSuccesses.length) return field.selfSuccesses
   }
 
   return {
@@ -75,10 +80,10 @@ export const Editable: ComposedEditable = observer((props) => {
     return (
       <BaseItem {...props} {...itemProps}>
         {pattern === 'editable' && (
-          <EditOutlined className={`${prefixCls}-edit-btn`} />
+          <EditOutlinedIcon className={`${prefixCls}-edit-btn`} />
         )}
         {pattern !== 'editable' && (
-          <MessageOutlined className={`${prefixCls}-edit-btn`} />
+          <MessageOutlinedIcon className={`${prefixCls}-edit-btn`} />
         )}
       </BaseItem>
     )
@@ -88,7 +93,7 @@ export const Editable: ComposedEditable = observer((props) => {
     if (!editable) return
     return (
       <BaseItem {...props}>
-        <CloseOutlined className={`${prefixCls}-close-btn`} />
+        <CloseOutlinedIcon className={`${prefixCls}-close-btn`} />
       </BaseItem>
     )
   }
@@ -173,10 +178,10 @@ Editable.Popover = observer(({ ...props }) => {
                 {props.title || field.title}
               </span>
               {pattern === 'editable' && (
-                <EditOutlined className={`${prefixCls}-edit-btn`} />
+                <EditOutlinedIcon className={`${prefixCls}-edit-btn`} />
               )}
               {pattern !== 'editable' && (
-                <MessageOutlined className={`${prefixCls}-edit-btn`} />
+                <MessageOutlinedIcon className={`${prefixCls}-edit-btn`} />
               )}
             </div>
           </BaseItem>

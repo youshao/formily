@@ -21,12 +21,18 @@ Vue.component('VoidField', VoidField)
 Vue.component('Field', Field)
 Vue.component('ReactiveField', ReactiveField as unknown as Vue)
 
-const Decorator: FunctionalComponentOptions = {
-  functional: true,
-  render(h, context) {
-    return h('div', context.data, context.children)
+const Decorator = defineComponent({
+  props: ['label'],
+  render(h) {
+    return h(
+      'div',
+      {
+        attrs: this.$attrs,
+      },
+      [this.label, this.$slots.default]
+    )
   },
-}
+})
 
 const Input = defineComponent({
   props: ['value'],
@@ -35,6 +41,7 @@ const Input = defineComponent({
     return () => {
       const field = fieldRef.value
       return h('input', {
+        class: 'test-input',
         attrs: {
           ...attrs,
           value: props.value,
@@ -63,7 +70,7 @@ test('render field', async () => {
   const atBlur = jest.fn()
   const atFocus = jest.fn()
 
-  const { getByTestId, queryByTestId } = render(
+  const { getByTestId, queryByTestId, queryByText } = render(
     defineComponent({
       name: 'TestComponent',
       setup() {
@@ -81,7 +88,7 @@ test('render field', async () => {
       template: `<FormProvider :form="form">
       <Field
         name="aa"
-        :decorator="[Decorator]"
+        :decorator="[Decorator, {label: 'aa-decorator'}]"
         :component="[Input, { onChange }]"
       />
       <ArrayField name="bb" :decorator="[Decorator]">
@@ -118,6 +125,10 @@ test('render field', async () => {
         :decorator="[Decorator]"
         :component="[Input, { '@change': atChange, '@focus': atFocus, '@blur': atBlur }]"
       />
+      <Field
+        name="mm"
+        :decorator="[Decorator]"
+      ><div data-testid="mm-children"></div></Field>
     </FormProvider>`,
     })
   )
@@ -140,6 +151,56 @@ test('render field', async () => {
   expect(queryByTestId('ee')).toBeNull()
   expect(form.query('aa').get('value')).toEqual('123')
   expect(form.query('kk').get('value')).toEqual('123')
+  expect(getByTestId('mm-children')).not.toBeUndefined()
+  expect(queryByText('aa-decorator')).not.toBeNull()
+})
+
+test('render field with html attrs', async () => {
+  const form = createForm()
+
+  const { getByTestId, container } = render(
+    defineComponent({
+      name: 'TestComponent',
+      setup() {
+        return {
+          form,
+          Input,
+          Decorator,
+        }
+      },
+      template: `<FormProvider :form="form">
+      <Field
+        name="aa"
+        :decorator="[Decorator, {
+          'data-testid': 'decorator',
+          class: {
+            'test-class': true
+          },
+          style: {
+            marginRight: '10px'
+          }
+        }]"
+        :component="[Input, {
+          class: {
+            'test-class': true
+          },
+          style: {
+            marginLeft: '10px'
+          }
+        }]"
+      />
+    </FormProvider>`,
+    })
+  )
+  expect(form.mounted).toBeTruthy()
+  expect(form.query('aa').take().mounted).toBeTruthy()
+  expect(getByTestId('aa').className.indexOf('test-input') !== -1).toBeTruthy()
+  expect(getByTestId('aa').className.indexOf('test-class') !== -1).toBeTruthy()
+  expect(getByTestId('aa').style.marginLeft).toEqual('10px')
+  expect(
+    getByTestId('decorator').className.indexOf('test-class') !== -1
+  ).toBeTruthy()
+  expect(getByTestId('decorator').style.marginRight).toEqual('10px')
 })
 
 test('ReactiveField', () => {

@@ -798,7 +798,7 @@ test('schema x-validator/required', async () => {
     expect(form.query('input').get('required')).toBeTruthy()
     expect(form.query('input').get('validator')).toEqual([
       { required: true },
-      'email',
+      { format: 'email' },
     ])
   })
 })
@@ -914,5 +914,58 @@ test('x-reactions runner for target', async () => {
     expect(getByTestId('btn').textContent).toBe('Click 123')
     expect(getTarget).toBeCalledWith('333')
     expect(getTarget).toBeCalledTimes(1)
+  })
+})
+
+test('multi x-reactions isolate effect', async () => {
+  const form = createForm()
+  const otherEffect = jest.fn()
+  const SchemaField = createSchemaField({
+    components: {
+      Input: () => <div data-testid="input"></div>,
+      Button: (props) => (
+        <button
+          data-testid="btn"
+          onClick={(e) => {
+            e.preventDefault()
+            props.onChange('123')
+          }}
+        >
+          Click {props.value}
+        </button>
+      ),
+    },
+  })
+
+  const { getByTestId, queryByTestId } = render(
+    <FormProvider form={form}>
+      <SchemaField>
+        <SchemaField.String
+          name="target"
+          x-reactions={[
+            otherEffect,
+            {
+              dependencies: ['btn'],
+              fulfill: {
+                state: {
+                  visible: '{{$deps[0] === "123"}}',
+                },
+              },
+            },
+          ]}
+          x-component="Input"
+        />
+        <SchemaField.String name="btn" x-component="Button" />
+      </SchemaField>
+    </FormProvider>
+  )
+  await waitFor(() => {
+    expect(queryByTestId('input')).toBeNull()
+  })
+  fireEvent.click(getByTestId('btn'))
+  await waitFor(() => {
+    expect(getByTestId('btn').textContent).toBe('Click 123')
+    expect(getByTestId('input')).not.toBeNull()
+    expect(otherEffect).toBeCalledTimes(1)
   })
 })

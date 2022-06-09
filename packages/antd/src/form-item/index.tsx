@@ -42,13 +42,14 @@ export interface IFormItemProps {
   feedbackLayout?: 'loose' | 'terse' | 'popover' | 'none' | (string & {})
   feedbackStatus?: 'error' | 'warning' | 'success' | 'pending' | (string & {})
   feedbackIcon?: React.ReactNode
+  getPopupContainer?: (node: HTMLElement) => HTMLElement
   asterisk?: boolean
   gridSpan?: number
   bordered?: boolean
 }
 
-type ComposeFormItem = React.FC<IFormItemProps> & {
-  BaseItem?: React.FC<IFormItemProps>
+type ComposeFormItem = React.FC<React.PropsWithChildren<IFormItemProps>> & {
+  BaseItem?: React.FC<React.PropsWithChildren<IFormItemProps>>
 }
 
 const useFormItemLayout = (props: IFormItemProps) => {
@@ -89,18 +90,23 @@ function useOverflow<
   const [overflow, setOverflow] = useState(false)
   const containerRef = useRef<Container>()
   const contentRef = useRef<Content>()
+  const layout = useFormLayout()
+  const labelCol = JSON.stringify(layout.labelCol)
 
   useEffect(() => {
-    if (containerRef.current && contentRef.current) {
-      const contentWidth = contentRef.current.getBoundingClientRect().width
-      const containerWidth = containerRef.current.getBoundingClientRect().width
-      if (contentWidth && containerWidth && containerWidth < contentWidth) {
-        if (!overflow) setOverflow(true)
-      } else {
-        if (overflow) setOverflow(false)
+    requestAnimationFrame(() => {
+      if (containerRef.current && contentRef.current) {
+        const contentWidth = contentRef.current.getBoundingClientRect().width
+        const containerWidth =
+          containerRef.current.getBoundingClientRect().width
+        if (contentWidth && containerWidth && containerWidth < contentWidth) {
+          if (!overflow) setOverflow(true)
+        } else {
+          if (overflow) setOverflow(false)
+        }
       }
-    }
-  }, [])
+    })
+  }, [labelCol])
 
   return {
     overflow,
@@ -115,12 +121,15 @@ const ICON_MAP = {
   warning: <ExclamationCircleOutlined />,
 }
 
-export const BaseItem: React.FC<IFormItemProps> = ({ children, ...props }) => {
+export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
+  children,
+  ...props
+}) => {
   const [active, setActive] = useState(false)
   const formLayout = useFormItemLayout(props)
   const { containerRef, contentRef, overflow } = useOverflow<
     HTMLDivElement,
-    HTMLLabelElement
+    HTMLSpanElement
   >()
   const {
     label,
@@ -136,6 +145,7 @@ export const BaseItem: React.FC<IFormItemProps> = ({ children, ...props }) => {
     fullness,
     feedbackLayout,
     feedbackIcon,
+    getPopupContainer,
     inset,
     bordered = true,
     labelWidth,
@@ -167,7 +177,7 @@ export const BaseItem: React.FC<IFormItemProps> = ({ children, ...props }) => {
     // 栅格模式
   }
   if (labelCol || wrapperCol) {
-    if (!labelStyle.width && !wrapperStyle.width) {
+    if (!labelStyle.width && !wrapperStyle.width && layout !== 'vertical') {
       enableCol = true
     }
   }
@@ -189,6 +199,7 @@ export const BaseItem: React.FC<IFormItemProps> = ({ children, ...props }) => {
           </div>
         }
         visible={!!feedbackText}
+        getPopupContainer={getPopupContainer}
       >
         {children}
       </Popover>
@@ -213,8 +224,10 @@ export const BaseItem: React.FC<IFormItemProps> = ({ children, ...props }) => {
   const renderLabelText = () => {
     const labelChildren = (
       <div className={`${prefixCls}-label-content`} ref={containerRef}>
-        {asterisk && <span className={`${prefixCls}-asterisk`}>{'*'}</span>}
-        <label ref={contentRef}>{label}</label>
+        <span ref={contentRef}>
+          {asterisk && <span className={`${prefixCls}-asterisk`}>{'*'}</span>}
+          <label>{label}</label>
+        </span>
       </div>
     )
 
@@ -361,60 +374,50 @@ export const BaseItem: React.FC<IFormItemProps> = ({ children, ...props }) => {
 // 适配
 export const FormItem: ComposeFormItem = connect(
   BaseItem,
-  mapProps(
-    { validateStatus: true, title: 'label', required: true },
-    (props, field) => {
-      if (isVoidField(field))
-        return {
-          extra: props.extra || field.description,
-        }
-      if (!field) return props
-      const takeMessage = () => {
-        const split = (messages: any[]) => {
-          return messages.reduce((buf, text, index) => {
-            if (!text) return buf
-            return index < messages.length - 1
-              ? buf.concat([text, ', '])
-              : buf.concat([text])
-          }, [])
-        }
-        if (field.validating) return
-        if (props.feedbackText) return props.feedbackText
-        if (field.selfErrors.length) return split(field.selfErrors)
-        if (field.selfWarnings.length) return split(field.selfWarnings)
-        if (field.selfSuccesses.length) return split(field.selfSuccesses)
-      }
-
+  mapProps((props, field) => {
+    if (isVoidField(field))
       return {
-        feedbackText: takeMessage(),
+        label: field.title || props.label,
+        asterisk: props.asterisk,
         extra: props.extra || field.description,
       }
-    },
-    (props, field) => {
-      if (isVoidField(field)) return props
-      if (!field) return props
-      return {
-        feedbackStatus:
-          field.validateStatus === 'validating'
-            ? 'pending'
-            : field.decorator[1]?.feedbackStatus || field.validateStatus,
+    if (!field) return props
+    const takeFeedbackStatus = () => {
+      if (field.validating) return 'pending'
+      return field.decoratorProps.feedbackStatus || field.validateStatus
+    }
+    const takeMessage = () => {
+      const split = (messages: any[]) => {
+        return messages.reduce((buf, text, index) => {
+          if (!text) return buf
+          return index < messages.length - 1
+            ? buf.concat([text, ', '])
+            : buf.concat([text])
+        }, [])
       }
-    },
-    (props, field) => {
-      if (isVoidField(field)) return props
-      if (!field) return props
-      let asterisk = false
+      if (field.validating) return
+      if (props.feedbackText) return props.feedbackText
+      if (field.selfErrors.length) return split(field.selfErrors)
+      if (field.selfWarnings.length) return split(field.selfWarnings)
+      if (field.selfSuccesses.length) return split(field.selfSuccesses)
+    }
+    const takeAsterisk = () => {
       if (field.required && field.pattern !== 'readPretty') {
-        asterisk = true
+        return true
       }
       if ('asterisk' in props) {
-        asterisk = props.asterisk
+        return props.asterisk
       }
-      return {
-        asterisk,
-      }
+      return false
     }
-  )
+    return {
+      label: props.label || field.title,
+      feedbackStatus: takeFeedbackStatus(),
+      feedbackText: takeMessage(),
+      asterisk: takeAsterisk(),
+      extra: props.extra || field.description,
+    }
+  })
 )
 
 FormItem.BaseItem = BaseItem

@@ -1,6 +1,7 @@
 import { ProxyRaw, RawProxy, ReactionStack } from '../environment'
 import { createAnnotation } from '../internals'
 import { buildDataTree } from '../tree'
+import { isFn } from '../checkers'
 import {
   bindTargetKeyWithCurrentReaction,
   runReactionsFromTargetKey,
@@ -20,6 +21,52 @@ export interface IComputed {
   <T>(compute: { get?: () => T; set?: (value: T) => void }): IValue<T>
 }
 
+const getDescriptor = Object.getOwnPropertyDescriptor
+
+const getProto = Object.getPrototypeOf
+
+const ClassDescriptorMap = new WeakMap()
+
+function getPropertyDescriptor(obj: any, key: PropertyKey) {
+  if (!obj) return
+  return getDescriptor(obj, key) || getPropertyDescriptor(getProto(obj), key)
+}
+
+function getPropertyDescriptorCache(obj: any, key: PropertyKey) {
+  const constructor = obj.constructor
+  if (constructor === Object || constructor === Array)
+    return getPropertyDescriptor(obj, key)
+  const cache = ClassDescriptorMap.get(constructor) || {}
+  const descriptor = cache[key]
+  if (descriptor) return descriptor
+  const newDesc = getPropertyDescriptor(obj, key)
+  ClassDescriptorMap.set(constructor, cache)
+  cache[key] = newDesc
+  return newDesc
+}
+
+function getPrototypeDescriptor(
+  target: any,
+  key: PropertyKey,
+  value: any
+): PropertyDescriptor {
+  if (!target) {
+    if (value) {
+      if (isFn(value)) {
+        return { get: value }
+      } else {
+        return value
+      }
+    }
+    return {}
+  }
+  const descriptor = getPropertyDescriptorCache(target, key)
+  if (descriptor) {
+    return descriptor
+  }
+  return {}
+}
+
 export const computed: IComputed = createAnnotation(
   ({ target, key, value }) => {
     const store: IValue = {}
@@ -28,31 +75,10 @@ export const computed: IComputed = createAnnotation(
 
     const context = target ? target : store
     const property = target ? key : 'value'
-    const getter = getGetter(context)
-    const setter = getSetter(context)
-
-    function getGetter(target: any) {
-      if (!target) {
-        if (value && value.get) return value.get
-        return value
-      }
-      const descriptor = Object.getOwnPropertyDescriptor(target, property)
-      if (descriptor && descriptor.get) return descriptor.get
-      return getGetter(Object.getPrototypeOf(target))
-    }
-
-    function getSetter(target: any) {
-      if (!target) {
-        if (value && value.set) return value.set
-        return
-      }
-      const descriptor = Object.getOwnPropertyDescriptor(target, property)
-      if (descriptor && descriptor.set) return descriptor.set
-      return getSetter(Object.getPrototypeOf(target))
-    }
+    const descriptor = getPrototypeDescriptor(target, property, value)
 
     function compute() {
-      store.value = getter?.call?.(context)
+      store.value = descriptor.get?.call(context)
     }
     function reaction() {
       if (ReactionStack.indexOf(reaction) === -1) {
@@ -80,11 +106,6 @@ export const computed: IComputed = createAnnotation(
     reaction._context = context
     reaction._property = property
 
-    ProxyRaw.set(proxy, store)
-    RawProxy.set(store, proxy)
-
-    buildDataTree(target, key, store)
-
     function get() {
       if (hasRunningReaction()) {
         bindComputedReactions(reaction)
@@ -109,7 +130,7 @@ export const computed: IComputed = createAnnotation(
     function set(value: any) {
       try {
         batchStart()
-        setter?.call?.(context, value)
+        descriptor.set?.call(context, value)
       } finally {
         batchEnd()
       }
@@ -119,7 +140,6 @@ export const computed: IComputed = createAnnotation(
         get,
         set,
         enumerable: true,
-        configurable: false,
       })
       return target
     } else {
@@ -127,6 +147,9 @@ export const computed: IComputed = createAnnotation(
         set,
         get,
       })
+      buildDataTree(target, key, store)
+      ProxyRaw.set(proxy, store)
+      RawProxy.set(store, proxy)
     }
     return proxy
   }

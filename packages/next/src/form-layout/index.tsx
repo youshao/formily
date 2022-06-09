@@ -36,9 +36,21 @@ export interface IFormLayoutProps {
   spaceGap?: number
 }
 
-export const FormLayoutDeepContext = createContext<IFormLayoutProps>(null)
+export interface IFormLayoutContext
+  extends Omit<
+    IFormLayoutProps,
+    'labelAlign' | 'wrapperAlign' | 'layout' | 'labelCol' | 'wrapperCol'
+  > {
+  labelAlign?: 'right' | 'left'
+  wrapperAlign?: 'right' | 'left'
+  layout?: 'vertical' | 'horizontal' | 'inline'
+  labelCol?: number
+  wrapperCol?: number
+}
 
-export const FormLayoutShallowContext = createContext<IFormLayoutProps>(null)
+export const FormLayoutDeepContext = createContext<IFormLayoutContext>(null)
+
+export const FormLayoutShallowContext = createContext<IFormLayoutContext>(null)
 
 export const useFormDeepLayout = () => useContext(FormLayoutDeepContext)
 
@@ -49,10 +61,10 @@ export const useFormLayout = () => ({
   ...useFormShallowLayout(),
 })
 
-export const FormLayout: React.FC<IFormLayoutProps> & {
-  useFormLayout: () => IFormLayoutProps
-  useFormDeepLayout: () => IFormLayoutProps
-  useFormShallowLayout: () => IFormLayoutProps
+export const FormLayout: React.FC<React.PropsWithChildren<IFormLayoutProps>> & {
+  useFormLayout: () => IFormLayoutContext
+  useFormDeepLayout: () => IFormLayoutContext
+  useFormShallowLayout: () => IFormLayoutContext
 } = ({ shallow, children, prefix, className, style, ...otherProps }) => {
   const { ref, props } = useResponsiveFormLayout(otherProps)
   const deepLayout = useFormDeepLayout()

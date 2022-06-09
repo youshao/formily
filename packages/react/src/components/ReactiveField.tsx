@@ -1,18 +1,21 @@
 import React, { Fragment, useContext } from 'react'
 import { toJS } from '@formily/reactive'
 import { observer } from '@formily/reactive-react'
-import { isFn, FormPath } from '@formily/shared'
+import { FormPath, isFn } from '@formily/shared'
 import { isVoidField, GeneralField, Form } from '@formily/core'
-import { SchemaOptionsContext } from '../shared'
+import { SchemaComponentsContext } from '../shared'
+import { RenderPropsChildren } from '../types'
 interface IReactiveFieldProps {
   field: GeneralField
-  children?:
-    | ((field: GeneralField, form: Form) => React.ReactChild)
-    | React.ReactNode
+  children?: RenderPropsChildren<GeneralField>
 }
 
-const mergeChildren = (children: React.ReactNode, content: React.ReactNode) => {
+const mergeChildren = (
+  children: RenderPropsChildren<GeneralField>,
+  content: React.ReactNode
+) => {
   if (!children && !content) return
+  if (isFn(children)) return
   return (
     <Fragment>
       {children}
@@ -21,57 +24,59 @@ const mergeChildren = (children: React.ReactNode, content: React.ReactNode) => {
   )
 }
 
-const renderChildren = (children: React.ReactNode, ...args: any[]) =>
-  isFn(children) ? children(...args) : children
+const renderChildren = (
+  children: RenderPropsChildren<GeneralField>,
+  field?: GeneralField,
+  form?: Form
+) => (isFn(children) ? children(field, form) : children)
 
 const ReactiveInternal: React.FC<IReactiveFieldProps> = (props) => {
-  const options = useContext(SchemaOptionsContext)
+  const components = useContext(SchemaComponentsContext)
   if (!props.field) {
     return <Fragment>{renderChildren(props.children)}</Fragment>
   }
   const field = props.field
   const content = mergeChildren(
     renderChildren(props.children, field, field.form),
-    field.content ?? field.component[1].children
+    field.content ?? field.componentProps.children
   )
   if (field.display !== 'visible') return null
 
   const renderDecorator = (children: React.ReactNode) => {
-    if (!field.decorator[0]) {
+    if (!field.decoratorType) {
       return <Fragment>{children}</Fragment>
     }
     const finalComponent =
-      FormPath.getIn(options?.components, field.decorator[0]) ??
-      field.decorator[0]
+      FormPath.getIn(components, field.decoratorType) ?? field.decoratorType
 
     return React.createElement(
       finalComponent,
-      toJS(field.decorator[1]),
+      toJS(field.decoratorProps),
       children
     )
   }
 
   const renderComponent = () => {
-    if (!field.component[0]) return content
+    if (!field.componentType) return content
     const value = !isVoidField(field) ? field.value : undefined
     const onChange = !isVoidField(field)
       ? (...args: any[]) => {
           field.onInput(...args)
-          field.component[1]?.onChange?.(...args)
+          field.componentProps?.onChange?.(...args)
         }
-      : field.component[1]?.onChange
+      : field.componentProps?.onChange
     const onFocus = !isVoidField(field)
       ? (...args: any[]) => {
           field.onFocus(...args)
-          field.component[1]?.onFocus?.(...args)
+          field.componentProps?.onFocus?.(...args)
         }
-      : field.component[1]?.onFocus
+      : field.componentProps?.onFocus
     const onBlur = !isVoidField(field)
       ? (...args: any[]) => {
           field.onBlur(...args)
-          field.component[1]?.onBlur?.(...args)
+          field.componentProps?.onBlur?.(...args)
         }
-      : field.component[1]?.onBlur
+      : field.componentProps?.onBlur
     const disabled = !isVoidField(field)
       ? field.pattern === 'disabled' || field.pattern === 'readPretty'
       : undefined
@@ -79,14 +84,13 @@ const ReactiveInternal: React.FC<IReactiveFieldProps> = (props) => {
       ? field.pattern === 'readOnly'
       : undefined
     const finalComponent =
-      FormPath.getIn(options?.components, field.component[0]) ??
-      field.component[0]
+      FormPath.getIn(components, field.componentType) ?? field.componentType
     return React.createElement(
       finalComponent,
       {
         disabled,
         readOnly,
-        ...toJS(field.component[1]),
+        ...toJS(field.componentProps),
         value,
         onChange,
         onFocus,
